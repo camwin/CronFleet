@@ -1,0 +1,219 @@
+{
+  "hosts": [
+    {
+      "id": "host-1",
+      "name": "netflow",
+      "ip": "127.0.0.1",
+      "username": "cronfleet",
+      "privateKeyPath": "/home/cpaulk/.ssh/cronfleet_ed25519",
+      "token": "dev-host-token-123"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "101",
+      "hostId": "host-1",
+      "description": "POC Heartbeat Check",
+      "schedule": "* * * * *",
+      "user": "root",
+      "command": "/bin/echo \"CronFleet heartbeat OK at $(date)\"",
+      "timeoutSec": 60,
+      "enabled": true
+    }
+  ],
+  "runs": [
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 7,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:20:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:20:01.933Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:19:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:19:01.891Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:18:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:18:01.653Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:17:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:17:01.608Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 9,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:16:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:16:01.563Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:15:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:15:01.321Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:14:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:14:01.278Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:13:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:13:01.234Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:12:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:12:01.987Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 9,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:11:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:11:01.945Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 7,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:10:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:10:01.896Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 7,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:09:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:09:01.658Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 7,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:08:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:08:01.614Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 7,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:07:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:07:01.572Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:06:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:06:01.333Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:05:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:05:01.272Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:04:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:04:01.230Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 9,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:03:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:03:01.990Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:02:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:02:01.943Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:01:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:01:01.899Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 9,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 09:00:01 AM CST 2026\n",
+      "received_at": "2026-11-17T15:00:01.606Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 08:59:01 AM CST 2026\n",
+      "received_at": "2026-11-17T14:59:01.553Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 9,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 08:58:01 AM CST 2026\n",
+      "received_at": "2026-11-17T14:58:01.511Z"
+    },
+    {
+      "job_id": "101",
+      "hostname": "netflow",
+      "exit_code": 0,
+      "duration_ms": 8,
+      "output_tail": "CronFleet heartbeat OK at Tue Nov 17 08:57:01 AM CST 2026\n",
+      "received_at": "2026-11-17T14:57:01.274Z"
+    }
+  ],
+  "alertWebhookUrl": ""
+}

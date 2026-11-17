@@ -1,0 +1,15 @@
+services:
+  cronfleet:
+    build: .
+    container_name: cronfleet
+    restart: unless-stopped
+    user: "1002:1002"
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATA_DIR=/app/data
+      - PUBLIC_URL=http://ansible.usouthal.edu:4000
+    volumes:
+      - ./data:/app/data:Z

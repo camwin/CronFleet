@@ -1,0 +1,14 @@
+# Runtime state, SSH private keys, host tokens, and telemetry DB
+data/
+
+# Dependencies & logs
+node_modules/
+npm-debug.log*
+*.log
+
+# Local environment & backup files
+.env
+.env.*
+*.bak
+*.tmp
+.DS_Store
