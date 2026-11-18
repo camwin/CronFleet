@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
@@ -24,7 +25,26 @@ const DB_PATH = path.join(DATA_DIR, 'db.json');
 const AUDIT_PATH = path.join(DATA_DIR, 'audit.jsonl');
 const PUBLIC_URL = (process.env.PUBLIC_URL || 'http://localhost:4000').replace(/\/$/, '');
 
-fs.mkdirSync(path.join(DATA_DIR, 'ssh'), { recursive: true });
+fs.mkdirSync(path.dirname(SSH_KEY_PATH), { recursive: true });
+
+if (!fs.existsSync(SSH_KEY_PATH) || !fs.existsSync(SSH_PUB_PATH)) {
+  execFileSync('ssh-keygen', ['-t', 'ed25519', '-N', '', '-C', 'cronfleet-control-plane', '-f', SSH_KEY_PATH]);
+  fs.chmodSync(SSH_KEY_PATH, 0o600);
+  console.log(`[SSH] Generated new Ed25519 control-plane keypair at ${SSH_KEY_PATH}`);
+}
+
+function getEffectivePublicUrl(req) {
+  const envUrl = (process.env.PUBLIC_URL || '').trim().replace(/\/$/, '');
+  if (envUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(envUrl)) {
+    return envUrl;
+  }
+  const hostHeader = req && typeof req.get === 'function' ? req.get('host') : '';
+  if (hostHeader) {
+    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0].trim();
+    return `${proto}://${hostHeader}`;
+  }
+  return PUBLIC_URL;
+}
 
 const defaultState = {
   hosts: [],
@@ -453,13 +473,14 @@ function enforceRootJobPolicy(req, targetRunAsUser) {
 // AUTHENTICATION, SETUP WIZARD & RBAC ENDPOINTS
 // ============================================================================
 app.get('/api/auth/status', (req, res) => {
+  const effectiveUrl = getEffectivePublicUrl(req);
   res.json({
     configured: Boolean(state.auth.configured),
     authenticated: Boolean(req.user),
     user: req.user ? { username: req.user.username, role: req.user.role, provider: req.user.provider } : null,
     authMode: state.auth.mode,
-    publicUrl: PUBLIC_URL,
-    oidcCallbackUrl: `${PUBLIC_URL}/api/auth/oidc/callback`,
+    publicUrl: effectiveUrl,
+    oidcCallbackUrl: `${effectiveUrl}/api/auth/oidc/callback`,
     requireHostToken: Boolean(state.auth.requireHostToken),
     config: req.user?.role === 'admin' ? {
       mode: state.auth.mode,
@@ -500,7 +521,6 @@ app.post('/api/auth/setup', (req, res) => {
       }];
     }
   } else {
-    // External directory/SSO requires a break-glass local admin for IdP outages
     if (!state.auth.configured) {
       if (!breakGlassAdmin?.username || !breakGlassAdmin?.password || breakGlassAdmin.password.length < 10) {
         return res.status(400).json({ error: 'A Break-Glass Local Admin account (10+ char password) is required in case your directory/SSO provider is unreachable.' });
@@ -656,16 +676,17 @@ app.get('/api/auth/oidc/login', async (req, res) => {
     return res.status(400).send('OIDC authentication is not active.');
   }
   try {
+    const effectiveUrl = getEffectivePublicUrl(req);
     const doc = await fetchOidcDiscovery(state.auth.oidc.issuerUrl);
     const oauthState = crypto.randomBytes(24).toString('hex');
     const verifier = b64urlEncode(crypto.randomBytes(32));
     const challenge = b64urlEncode(crypto.createHash('sha256').update(verifier).digest());
-    oidcPendingStates.set(oauthState, { verifier, createdAt: Date.now() });
+    oidcPendingStates.set(oauthState, { verifier, redirectUri: `${effectiveUrl}/api/auth/oidc/callback`, createdAt: Date.now() });
 
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: state.auth.oidc.clientId,
-      redirect_uri: `${PUBLIC_URL}/api/auth/oidc/callback`,
+      redirect_uri: `${effectiveUrl}/api/auth/oidc/callback`,
       scope: state.auth.oidc.scopes || 'openid profile email groups',
       state: oauthState,
       code_challenge: challenge,
@@ -691,7 +712,7 @@ app.get('/api/auth/oidc/callback', async (req, res) => {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code: String(code),
-      redirect_uri: `${PUBLIC_URL}/api/auth/oidc/callback`,
+      redirect_uri: pending.redirectUri,
       client_id: state.auth.oidc.clientId,
       client_secret: state.auth.oidc.clientSecret,
       code_verifier: pending.verifier
@@ -785,7 +806,7 @@ app.get('/api/audit', requireAuth, (req, res) => {
 // ============================================================================
 app.get('/api/meta', requireAuth, (req, res) => {
   res.json({
-    publicUrl: PUBLIC_URL,
+    publicUrl: getEffectivePublicUrl(req),
     alertWebhookUrl: state.alertWebhookUrl,
     graceMinutes: state.graceMinutes,
     user: req.user
@@ -799,19 +820,21 @@ app.post('/api/settings', requireAuth, requireRole('admin'), async (req, res) =>
   saveState();
   writeAudit(req, 'settings.update', 'global', { graceMinutes: state.graceMinutes, webhookConfigured: Boolean(state.alertWebhookUrl) });
   if (testAlert && state.alertWebhookUrl) {
-    await sendChatAlert(`✅ *CronFleet Test Alert:* Connected to \`${PUBLIC_URL}\` (triggered by \`${req.user.username}\`).`);
+    await sendChatAlert(`✅ *CronFleet Test Alert:* Connected to \`${getEffectivePublicUrl(req)}\` (triggered by \`${req.user.username}\`).`);
   }
   res.json({ ok: true });
 });
 
 app.get('/api/hosts', requireAuth, (req, res) => {
+  const effectiveUrl = getEffectivePublicUrl(req);
   res.json(state.hosts.map(h => ({
     ...h,
-    onboardCommand: `curl -fsSL "${PUBLIC_URL}/onboard.sh?token=${h.token}" | sudo bash`
+    onboardCommand: `curl -fsSL "${effectiveUrl}/onboard.sh?token=${h.token}" | sudo bash`
   })));
 });
 
 app.post('/api/hosts', requireAuth, requireRole('admin'), async (req, res) => {
+  const effectiveUrl = getEffectivePublicUrl(req);
   const host = {
     id: `host-${Date.now().toString(36)}`,
     name: req.body.name.trim(),
@@ -823,7 +846,7 @@ app.post('/api/hosts', requireAuth, requireRole('admin'), async (req, res) => {
   saveState();
   writeAudit(req, 'host.create', `${host.name} (${host.ip})`);
   await sendChatAlert(`🖥️ *CronFleet Server Added:* \`${host.name}\` (\`${host.ip}\`) added by \`${req.user.username}\`.`);
-  res.status(201).json({ ...host, onboardCommand: `curl -fsSL "${PUBLIC_URL}/onboard.sh?token=${host.token}" | sudo bash` });
+  res.status(201).json({ ...host, onboardCommand: `curl -fsSL "${effectiveUrl}/onboard.sh?token=${host.token}" | sudo bash` });
 });
 
 app.get('/api/jobs', requireAuth, (req, res) => {
@@ -1086,7 +1109,7 @@ app.get('/onboard.sh', (req, res) => {
     return res.status(403).type('text/plain').send('# Error: Invalid or unrecognized CronFleet host onboarding token.\nexit 1\n');
   }
   const pubKey = fs.existsSync(SSH_PUB_PATH) ? fs.readFileSync(SSH_PUB_PATH, 'utf8').trim() : '';
-  res.type('text/x-shellscript').send(renderOnboardScript(PUBLIC_URL, token, pubKey));
+  res.type('text/x-shellscript').send(renderOnboardScript(getEffectivePublicUrl(req), token, pubKey));
 });
 
 // --- Missed-Run Watchdog ---
