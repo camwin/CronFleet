@@ -1,19 +1,18 @@
 {
-  "name": "cronfleet-poc",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "cronfleet",
+  "version": "1.1.0",
+  "description": "Centralized multi-node cron management, discovery, guardrails, AAA security, and telemetry",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",
     "cron-parser": "^5.10.6",
     "cronstrue": "^3.41.0",
     "express": "^5.3.0",
+    "ldapts": "^7.3.2",
     "node-ssh": "^14.0.0"
   }
 }

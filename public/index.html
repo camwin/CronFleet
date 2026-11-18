@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CronFleet Control Plane</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6">
+  <div class="max-w-6xl mx-auto space-y-6">
+    <header class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-2xl font-bold text-indigo-400">CronFleet</h1>
+          <select id="host-select" onchange="selectHost(this.value)" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm font-mono text-emerald-400"></select>
+          <button onclick="openModal('host-modal')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs">+ Add Server</button>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Centralized Multi-Node Cron Management, Guardrails &amp; Telemetry <button id="live-pill" onclick="toggleAutoRefresh()" class="ml-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 hover:bg-emerald-900/60"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Live (15s)</button></p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="openAlertModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs font-medium">Alerts &amp; Webhooks</button>
+        <button id="discover-btn" onclick="discoverJobs()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 rounded text-xs font-medium">Scan All Hosts (Discover)</button>
+        <button id="sync-btn" onclick="syncHost()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-medium">Sync All Hosts</button>
+      </div>
+    </header>
+
+    <div id="onboard-banner" class="hidden bg-slate-900/80 border border-slate-800 rounded-lg px-4 py-2.5 flex items-center justify-between text-xs">
+      <span class="text-slate-400">Node Bootstrap Command: <code id="onboard-cmd" class="text-indigo-300 ml-1 select-all"></code></span>
+      <button id="copy-onboard-btn" onclick="copyOnboard()" class="text-indigo-400 hover:text-indigo-300 font-medium ml-4 shrink-0">Copy</button>
+    </div>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Add Managed Job</h2>
+      <form onsubmit="createJob(event)" class="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <div id="job-host-wrap" class="md:col-span-2">
+          <select id="job-host" class="w-full h-full bg-slate-800 border border-slate-700 rounded px-2.5 py-2 text-sm font-mono text-indigo-300"></select>
+        </div>
+        <input id="desc" required placeholder="Description (e.g. Nightly Backup)" class="md:col-span-3 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm" />
+        <input id="sched" required placeholder="0 2 * * *" class="md:col-span-2 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm font-mono" />
+        <input id="user" required value="root" placeholder="User" class="md:col-span-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm font-mono" />
+        <input id="cmd" required placeholder="Command or /path/to/script.sh" class="md:col-span-2 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm font-mono" />
+        <button type="submit" class="md:col-span-2 bg-emerald-600 hover:bg-emerald-500 rounded px-4 py-2 text-sm font-medium">Create &amp; Sync</button>
+      </form>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="managed-heading" class="text-xs font-semibold uppercase tracking-wider text-emerald-400">All Fleet Managed Jobs (/etc/cron.d/cronfleet)</h2>
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="fleet-stats" class="flex flex-wrap items-center gap-1.5 text-xs"></div>
+          <input id="job-search" oninput="setSearchFilter(this.value)" placeholder="Filter jobs, hosts, commands..." class="bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs w-52 focus:outline-none focus:border-indigo-500" />
+        </div>
+      </div>
+      <div id="managed-list" class="space-y-2.5"></div>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-amber-400 mb-3">Discovered Unmanaged Jobs</h2>
+      <div id="discovered-list" class="space-y-2.5 text-sm text-slate-400">Click "Scan All Hosts (Discover)" to inspect existing crontabs across your fleet.</div>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 id="telemetry-heading" class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Recent Fleet Telemetry</h2>
+        <button onclick="loadAll()" class="text-xs text-slate-400 hover:text-white">Refresh</button>
+      </div>
+      <div id="runs-list" class="space-y-2 font-mono text-xs"></div>
+    </section>
+  </div>
+
+  <!-- Per-Job Logs Modal -->
+  <div id="logs-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-3xl w-full p-5 flex flex-col max-h-[85vh] space-y-4">
+      <div class="flex items-start justify-between gap-4 border-b border-slate-800 pb-3">
+        <div>
+          <h3 id="logs-modal-title" class="text-lg font-semibold text-indigo-400">Job Execution Logs</h3>
+          <p id="logs-modal-sub" class="text-xs font-mono text-slate-400 mt-0.5"></p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="refreshJobLogs()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs">Refresh</button>
+          <button onclick="closeModal('logs-modal')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs">Close</button>
+        </div>
+      </div>
+      <div id="logs-modal-body" class="overflow-y-auto space-y-3 font-mono text-xs pr-1"></div>
+    </div>
+  </div>
+
+  <!-- Smart Adoption Modal -->
+  <div id="adopt-modal" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-xl w-full p-5 space-y-4">
+      <h3 class="text-lg font-semibold text-amber-400">Review &amp; Adopt Cron Job</h3>
+      <div id="adopt-advisories" class="space-y-2 text-xs"></div>
+      <div class="space-y-3 text-sm">
+        <div><label class="text-xs text-slate-400">Description</label><input id="adopt-desc" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1" /></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs text-slate-400">Schedule</label><input id="adopt-sched" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono" /></div>
+          <div><label class="text-xs text-slate-400">Run As Linux User</label><input id="adopt-user" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono" /></div>
+        </div>
+        <div><label class="text-xs text-slate-400">Command</label><textarea id="adopt-cmd" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono text-xs"></textarea></div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('adopt-modal')" class="px-3 py-1.5 bg-slate-800 rounded text-xs">Cancel</button>
+        <button onclick="confirmAdopt()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 rounded text-xs font-medium">Adopt &amp; Comment Out Original</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Job Modal -->
+  <div id="edit-modal" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-xl w-full p-5 space-y-4">
+      <h3 class="text-lg font-semibold text-indigo-400">Edit Managed Job</h3>
+      <div class="space-y-3 text-sm">
+        <div><label class="text-xs text-slate-400">Description</label><input id="edit-desc" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1" /></div>
+        <div class="grid grid-cols-3 gap-3">
+          <div><label class="text-xs text-slate-400">Schedule</label><input id="edit-sched" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono" /></div>
+          <div><label class="text-xs text-slate-400">Run As User</label><input id="edit-user" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono" /></div>
+          <div><label class="text-xs text-slate-400">Timeout (sec)</label><input id="edit-timeout" type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono" /></div>
+        </div>
+        <div><label class="text-xs text-slate-400">Command</label><textarea id="edit-cmd" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono text-xs"></textarea></div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('edit-modal')" class="px-3 py-1.5 bg-slate-800 rounded text-xs">Cancel</button>
+        <button onclick="saveEdit()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-medium">Save &amp; Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Server Modal -->
+  <div id="host-modal" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-md w-full p-5 space-y-4">
+      <h3 class="text-lg font-semibold text-emerald-400">Add Managed Linux Server</h3>
+      <form onsubmit="addHost(event)" class="space-y-3 text-sm">
+        <input id="host-name" required placeholder="Hostname Label (e.g. web-01)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input id="host-ip" required placeholder="IP or FQDN (e.g. 192.0.2.10)" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 font-mono" />
+        <input id="host-user" required value="cronfleet" placeholder="SSH Service User" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 font-mono" />
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('host-modal')" class="px-3 py-1.5 bg-slate-800 rounded text-xs">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-xs font-medium">Register Host</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Alert Settings Modal -->
+  <div id="alert-modal" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-lg w-full p-5 space-y-4">
+      <h3 class="text-lg font-semibold text-indigo-400">Chat Alerts &amp; Watchdog Settings</h3>
+      <div class="space-y-3 text-sm">
+        <div><label class="text-xs text-slate-400">Slack / Discord / Teams Incoming Webhook URL</label><input id="webhook-url" placeholder="https://hooks.slack.com/services/..." class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 mt-1 font-mono text-xs" /></div>
+        <div><label class="text-xs text-slate-400">Missed-Run Watchdog Grace Period (minutes)</label><input id="grace-mins" type="number" min="1" value="2" class="w-32 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 mt-1 font-mono" /></div>
+      </div>
+      <div class="flex justify-between pt-2">
+        <button onclick="saveAlerts(true)" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-xs">Save &amp; Send Test</button>
+        <div class="flex gap-2">
+          <button onclick="closeModal('alert-modal')" class="px-3 py-1.5 bg-slate-800 rounded text-xs">Cancel</button>
+          <button onclick="saveAlerts(false)" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-medium">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/auth.js"></script>
+  <script src="/app.js?v=4"></script>
+</body>
+</html>
